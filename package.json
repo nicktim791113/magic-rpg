@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "npm run build && gh-pages -d dist -t"
+    "deploy": "npm run build && gh-pages -d dist -t",
+    "art": "python scripts/process_art.py"
   },
   "dependencies": {
     "phaser": "^4.1.0"

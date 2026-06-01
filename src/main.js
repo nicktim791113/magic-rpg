@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import PreloadScene from "./scenes/PreloadScene.js";
 import TitleScene from "./scenes/TitleScene.js";
 import WorldScene from "./scenes/WorldScene.js";
 import BattleScene from "./scenes/BattleScene.js";
@@ -22,7 +23,7 @@ const config = {
   },
   // 場景清單。「第一個」會在開場時啟動。
   // 太空 RPG 流程：標題 → 探索星球(World) → 戰鬥(Battle)。
-  scene: [TitleScene, WorldScene, BattleScene],
+  scene: [PreloadScene, TitleScene, WorldScene, BattleScene],
 };
 
 // 建立遊戲！

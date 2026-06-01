@@ -4,6 +4,7 @@ import { gameState, addItem } from "../data/gameState.js";
 import { PLANETS } from "../data/planets.js";
 import { ENEMIES } from "../data/enemies.js";
 import { ITEMS } from "../data/items.js";
+import { spriteOrShape } from "../util/art.js";
 
 // ============================================================
 // WorldScene = 俯視角「星球探索」場景。
@@ -49,7 +50,9 @@ export default class WorldScene extends Phaser.Scene {
       const key = `${this.planetId}:item:${i}`;
       if (gameState.cleared.has(key)) return; // 已撿過就不再出現
       const def = ITEMS[it.id];
-      const obj = this.add.circle(it.x, it.y, 12, def.color).setStrokeStyle(2, 0xffffff);
+      const obj = spriteOrShape(this, it.x, it.y, `item-${it.id}`, 30, () =>
+        this.add.circle(it.x, it.y, 12, def.color).setStrokeStyle(2, 0xffffff)
+      );
       this.add.text(it.x, it.y - 24, def.name, { fontSize: "13px", color: "#ffff99", fontFamily: FONT }).setOrigin(0.5);
       this.groundItems.push({ ...it, key, _obj: obj });
     });
@@ -57,8 +60,9 @@ export default class WorldScene extends Phaser.Scene {
     // --- NPC（會講話）---
     this.npcs = [];
     (planet.npcs || []).forEach((n) => {
-      const obj = this.add.circle(n.x, n.y, 16, n.color);
-      obj.setStrokeStyle(3, 0xffffff);
+      const obj = spriteOrShape(this, n.x, n.y, n.sprite, 44, () =>
+        this.add.circle(n.x, n.y, 16, n.color).setStrokeStyle(3, 0xffffff)
+      );
       this.physics.add.existing(obj, true);
       this.add.text(n.x, n.y - 30, n.name, { fontSize: "14px", color: "#ffffff", fontFamily: FONT }).setOrigin(0.5);
       this.npcs.push({ ...n, _obj: obj });
@@ -70,17 +74,22 @@ export default class WorldScene extends Phaser.Scene {
       const key = `${this.planetId}:enemy:${i}`;
       if (gameState.cleared.has(key)) return; // 已打倒就不再出現
       const def = ENEMIES[e.id];
-      let obj;
-      if (def.shape === "rect") obj = this.add.rectangle(e.x, e.y, def.r * 2, def.r * 2, def.color);
-      else obj = this.add.circle(e.x, e.y, def.r, def.color);
-      obj.setStrokeStyle(3, 0x000000);
+      const obj = spriteOrShape(this, e.x, e.y, `enemy-${e.id}`, def.r * 2, () => {
+        const shape =
+          def.shape === "rect"
+            ? this.add.rectangle(e.x, e.y, def.r * 2, def.r * 2, def.color)
+            : this.add.circle(e.x, e.y, def.r, def.color);
+        return shape.setStrokeStyle(3, 0x000000);
+      });
       this.add.text(e.x, e.y - def.r - 14, def.name, { fontSize: "13px", color: "#ffcccc", fontFamily: FONT }).setOrigin(0.5);
       this.enemies.push({ ...e, key, def, _obj: obj });
     });
 
     // --- 玩家 ---
     const spawn = this.fromBattle && gameState.returnPos ? gameState.returnPos : planet.spawn;
-    this.player = this.add.circle(spawn.x, spawn.y, 14, 0xffe082).setStrokeStyle(3, 0xff8f00);
+    this.player = spriteOrShape(this, spawn.x, spawn.y, "player", 32, () =>
+      this.add.circle(spawn.x, spawn.y, 14, 0xffe082).setStrokeStyle(3, 0xff8f00)
+    );
     this.physics.add.existing(this.player);
     this.player.body.setCollideWorldBounds(true);
     this.npcs.forEach((n) => this.physics.add.collider(this.player, n._obj));
@@ -182,6 +191,12 @@ export default class WorldScene extends Phaser.Scene {
 
   // ---------------- 畫面元件 ----------------
   drawGround(w, h, planet) {
+    // 有地面圖就鋪成可重複的材質；沒有就畫原本的色塊格線
+    const key = `ground-${this.planetId}`;
+    if (this.textures.exists(key)) {
+      this.add.tileSprite(0, 0, w, h, key).setOrigin(0, 0);
+      return;
+    }
     const g = this.add.graphics();
     g.fillStyle(planet.ground, 1);
     g.fillRect(0, 0, w, h);

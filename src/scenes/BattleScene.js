@@ -4,6 +4,7 @@ import { gameState, gainExp, removeItem } from "../data/gameState.js";
 import { ENEMIES } from "../data/enemies.js";
 import { ITEMS } from "../data/items.js";
 import { SKILLS } from "../data/skills.js";
+import { spriteOrShape } from "../util/art.js";
 
 // ============================================================
 // BattleScene = 回合制戰鬥。
@@ -19,6 +20,7 @@ export default class BattleScene extends Phaser.Scene {
 
   init(data) {
     this.enemyKey = data.enemyKey;
+    this.enemyId = data.enemyId;
     this.returnPlanet = data.returnPlanet;
     const def = ENEMIES[data.enemyId];
     // 複製一份敵人資料（戰鬥中會扣血，不要改到原始資料）
@@ -37,9 +39,13 @@ export default class BattleScene extends Phaser.Scene {
 
     // 敵人
     const ex = GAME_WIDTH / 2, ey = 175;
-    if (this.enemy.shape === "rect") this.enemySprite = this.add.rectangle(ex, ey, this.enemy.r * 2, this.enemy.r * 2, this.enemy.color);
-    else this.enemySprite = this.add.circle(ex, ey, this.enemy.r, this.enemy.color);
-    this.enemySprite.setStrokeStyle(3, 0xffffff);
+    this.enemySprite = spriteOrShape(this, ex, ey, `enemy-${this.enemyId}`, this.enemy.r * 2.4, () => {
+      const shape =
+        this.enemy.shape === "rect"
+          ? this.add.rectangle(ex, ey, this.enemy.r * 2, this.enemy.r * 2, this.enemy.color)
+          : this.add.circle(ex, ey, this.enemy.r, this.enemy.color);
+      return shape.setStrokeStyle(3, 0xffffff);
+    });
     this.add.text(ex, ey - this.enemy.r - 34, this.enemy.name, { fontSize: "22px", color: "#ffffff", fontFamily: FONT }).setOrigin(0.5);
     // 敵人血條
     this.add.rectangle(ex, ey - this.enemy.r - 12, 160, 12, 0x333333).setOrigin(0.5);
