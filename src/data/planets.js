@@ -32,7 +32,7 @@ export const PLANETS = {
         ],
       },
       {
-        x: 300, y: 470, name: "補給官 莉拉", color: 0xff99cc,
+        x: 300, y: 470, name: "補給官 莉拉", color: 0xff99cc, shop: true,
         lines: [
           "補給官莉拉：需要什麼儘管說，這裡很安全。",
           "聽說『赤焰星』上有人受困了……",
@@ -68,7 +68,7 @@ export const PLANETS = {
         ],
       },
       {
-        x: 640, y: 700, name: "艾拉", color: 0xff77aa, sprite: "npc-aira",
+        x: 640, y: 700, name: "艾拉", color: 0xff77aa, sprite: "npc-aira", joinAlly: "aira",
         lines: [
           "？？？：等一下！你也是來探索這顆星球的冒險者嗎？",
           "艾拉：我叫艾拉，是個遊俠。一個人在外面太危險了……",

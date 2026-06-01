@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { FONT, GAME_WIDTH, GAME_HEIGHT } from "../data/constants.js";
-import { gameState, addItem } from "../data/gameState.js";
+import { gameState, addItem, saveGame, joinAlly } from "../data/gameState.js";
 import { PLANETS } from "../data/planets.js";
 import { ENEMIES } from "../data/enemies.js";
 import { ITEMS } from "../data/items.js";
@@ -144,6 +144,7 @@ export default class WorldScene extends Phaser.Scene {
         addItem(it.id, it.count || 1);
         gameState.cleared.add(it.key);
         it._obj.destroy();
+        saveGame();
         this.flashMessage(`撿到 ${ITEMS[it.id].name}！`);
         return false;
       }
@@ -158,7 +159,9 @@ export default class WorldScene extends Phaser.Scene {
     // 跟 NPC 對話
     for (const n of this.npcs) {
       if (Phaser.Math.Distance.Between(px, py, n.x, n.y) < 56 && Phaser.Input.Keyboard.JustDown(this.keys.SPACE)) {
-        this.startDialogue(n.name, n.lines); return;
+        if (n.shop) this.openShop();
+        else this.startDialogue(n);
+        return;
       }
     }
 
@@ -175,6 +178,7 @@ export default class WorldScene extends Phaser.Scene {
     this.transitioning = true;
     gameState.returnPos = null;
     gameState.currentPlanet = p.to;
+    saveGame();
     this.cameras.main.fadeOut(250);
     this.time.delayedCall(260, () => this.scene.start("WorldScene", { planet: p.to }));
   }
@@ -189,6 +193,13 @@ export default class WorldScene extends Phaser.Scene {
     );
   }
 
+  openShop() {
+    this.transitioning = true;
+    gameState.returnPos = { x: this.player.x, y: this.player.y + 36 };
+    this.cameras.main.fadeOut(180);
+    this.time.delayedCall(190, () => this.scene.start("ShopScene", { returnPlanet: this.planetId }));
+  }
+
   // ---------------- 畫面元件 ----------------
   drawGround(w, h, planet) {
     // 有地面圖就鋪成可重複的材質；沒有就畫原本的色塊格線
@@ -200,9 +211,16 @@ export default class WorldScene extends Phaser.Scene {
     const g = this.add.graphics();
     g.fillStyle(planet.ground, 1);
     g.fillRect(0, 0, w, h);
-    g.lineStyle(1, planet.grid, 0.6);
-    for (let x = 0; x <= w; x += 48) g.lineBetween(x, 0, x, h);
-    for (let y = 0; y <= h; y += 48) g.lineBetween(0, y, w, y);
+    // 地形色塊：用星球的點綴色畫許多半透明橢圓，讓地面有深淺層次（不再死板）
+    const palette = planet.decorColors || [planet.grid];
+    for (let i = 0; i < 150; i++) {
+      g.fillStyle(palette[Math.floor(Math.random() * palette.length)], 0.22);
+      g.fillEllipse(Math.random() * w, Math.random() * h, 50 + Math.random() * 130, 36 + Math.random() * 90);
+    }
+    // 淡淡的格線
+    g.lineStyle(1, planet.grid, 0.22);
+    for (let x = 0; x <= w; x += 64) g.lineBetween(x, 0, x, h);
+    for (let y = 0; y <= h; y += 64) g.lineBetween(0, y, w, y);
   }
 
   drawDecor(w, h, planet) {
@@ -244,13 +262,14 @@ export default class WorldScene extends Phaser.Scene {
     this.dialogueHint = this.add.text(720, 552, "空白鍵 ▶", { fontSize: "14px", color: "#bbbbbb", fontFamily: FONT }).setScrollFactor(0).setVisible(false);
   }
 
-  startDialogue(name, lines) {
+  startDialogue(npc) {
+    this.currentNpc = npc;
     this.dialogueActive = true;
-    this.dialogueLines = lines;
+    this.dialogueLines = npc.lines;
     this.dialogueIndex = 0;
     this.player.body.setVelocity(0, 0);
     this.dialogueBg.setVisible(true);
-    this.dialogueText.setVisible(true).setText(lines[0]);
+    this.dialogueText.setVisible(true).setText(npc.lines[0]);
     this.dialogueHint.setVisible(true);
   }
 
@@ -265,6 +284,15 @@ export default class WorldScene extends Phaser.Scene {
     this.dialogueBg.setVisible(false);
     this.dialogueText.setVisible(false);
     this.dialogueHint.setVisible(false);
+    // 對話的 NPC 若可加入隊伍，且還沒加入 → 加入
+    const npc = this.currentNpc;
+    this.currentNpc = null;
+    if (npc && npc.joinAlly && !gameState.flags[npc.joinAlly + "Joined"]) {
+      if (joinAlly(npc.joinAlly)) {
+        this.flashMessage(npc.name + " 加入了你的隊伍！");
+        saveGame();
+      }
+    }
   }
 
   // ---------------- 背包 ----------------

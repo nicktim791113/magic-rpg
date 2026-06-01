@@ -3,7 +3,9 @@ import PreloadScene from "./scenes/PreloadScene.js";
 import TitleScene from "./scenes/TitleScene.js";
 import WorldScene from "./scenes/WorldScene.js";
 import BattleScene from "./scenes/BattleScene.js";
+import ShopScene from "./scenes/ShopScene.js";
 import { gameState } from "./data/gameState.js";
+import * as GS from "./data/gameState.js";
 
 // ============================================================
 // 這裡是整個遊戲的「總開關」。
@@ -23,7 +25,7 @@ const config = {
   },
   // 場景清單。「第一個」會在開場時啟動。
   // 太空 RPG 流程：標題 → 探索星球(World) → 戰鬥(Battle)。
-  scene: [PreloadScene, TitleScene, WorldScene, BattleScene],
+  scene: [PreloadScene, TitleScene, WorldScene, BattleScene, ShopScene],
 };
 
 // 建立遊戲！
@@ -32,3 +34,4 @@ const game = new Phaser.Game(config);
 // 方便除錯：把遊戲實例與存檔狀態掛到 window，可在瀏覽器 console 直接觀察
 window.game = game;
 window.gameState = gameState;
+window.GS = GS;
