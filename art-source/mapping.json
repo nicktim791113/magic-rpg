@@ -1,0 +1,5 @@
+{
+  "小怪圖.png": { "split": ["enemy-poring", "enemy-lavabug", "enemy-sprout"] },
+  "男主角.png": { "key": "player" },
+  "女主角 (1).jpg": { "key": "npc-aira" }
+}

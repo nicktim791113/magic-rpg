@@ -8,8 +8,8 @@
 export const gameState = {
   // 主角
   player: {
-    name: "艾拉",
-    job: "星際冒險者",
+    name: "亞瑟",
+    job: "星際騎士",
     level: 1,
     exp: 0,
     expToNext: 20, // 升到下一級需要的經驗值

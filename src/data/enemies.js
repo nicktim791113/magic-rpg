@@ -10,13 +10,13 @@ export const ENEMIES = {
     color: 0xff77aa, shape: "circle", r: 26,
   },
   sprout: {
-    name: "咬人花苗",
+    name: "綠皮獸人",
     hp: 30, atk: 10, def: 3,
     exp: 12, gold: 8,
     color: 0x66cc66, shape: "circle", r: 24,
   },
   lavabug: {
-    name: "熔岩甲蟲",
+    name: "烈焰惡魔",
     hp: 42, atk: 14, def: 5,
     exp: 20, gold: 15,
     color: 0xff6633, shape: "rect", r: 28,

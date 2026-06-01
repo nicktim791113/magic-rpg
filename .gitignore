@@ -3,3 +3,9 @@ dist/
 dev-dist/
 *.log
 .DS_Store
+
+# 原始美術素材：原圖較大、且可能含第三方素材，不進版控。
+# 只保留對應表與說明；處理後的成品在 public/assets/ 才進版控。
+art-source/*
+!art-source/README.md
+!art-source/mapping.json

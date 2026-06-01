@@ -87,7 +87,7 @@ export default class WorldScene extends Phaser.Scene {
 
     // --- 玩家 ---
     const spawn = this.fromBattle && gameState.returnPos ? gameState.returnPos : planet.spawn;
-    this.player = spriteOrShape(this, spawn.x, spawn.y, "player", 32, () =>
+    this.player = spriteOrShape(this, spawn.x, spawn.y, "player", 40, () =>
       this.add.circle(spawn.x, spawn.y, 14, 0xffe082).setStrokeStyle(3, 0xff8f00)
     );
     this.physics.add.existing(this.player);
