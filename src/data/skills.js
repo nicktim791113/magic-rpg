@@ -17,4 +17,25 @@ export const SKILLS = {
     amount: 45,
     desc: "消耗 10 SP，恢復 45 HP",
   },
+  heavyslash: {
+    name: "強力斬",
+    type: "attack",
+    sp: 14,
+    power: 2.6,
+    desc: "消耗 14 SP，造成 2.6 倍攻擊傷害（亞瑟 Lv.3 學會）",
+  },
+  pierce: {
+    name: "貫穿射擊",
+    type: "attack",
+    sp: 9,
+    power: 2.1,
+    desc: "消耗 9 SP，造成 2.1 倍攻擊傷害（艾拉 Lv.2 學會）",
+  },
+  cure: {
+    name: "治癒之術",
+    type: "heal",
+    sp: 12,
+    amount: 65,
+    desc: "消耗 12 SP，恢復 65 HP（艾拉 Lv.4 學會）",
+  },
 };

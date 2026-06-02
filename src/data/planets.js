@@ -60,7 +60,7 @@ export const PLANETS = {
     decorColors: [0x3a6b42, 0x55a05a, 0x86d98a, 0xcfe8a0],
     npcs: [
       {
-        x: 380, y: 420, name: "植物學家 芬恩", color: 0x9be870,
+        x: 380, y: 420, name: "植物學家 芬恩", color: 0x9be870, quest: "trial",
         lines: [
           "植物學家芬恩：這顆星球的植物會發光，美吧？",
           "小心那些彈跳的『太空波利』，看起來可愛卻會咬人。",
@@ -131,7 +131,7 @@ export const PLANETS = {
     decorColors: [0x355d80, 0x5a86a8, 0x9fcfe0, 0xdff2f8],
     npcs: [
       {
-        x: 640, y: 440, name: "隱士 賢者歐拉", color: 0xbfe8ff,
+        x: 640, y: 440, name: "隱士 賢者歐拉", color: 0xbfe8ff, quest: "yeti",
         lines: [
           "賢者歐拉：你走了很遠的路，才來到這片冰原。",
           "『霜雪獸』是這顆星球的守護者，擊敗牠，你將證明自己。",

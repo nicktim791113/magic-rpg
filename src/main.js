@@ -4,6 +4,7 @@ import TitleScene from "./scenes/TitleScene.js";
 import WorldScene from "./scenes/WorldScene.js";
 import BattleScene from "./scenes/BattleScene.js";
 import ShopScene from "./scenes/ShopScene.js";
+import EquipScene from "./scenes/EquipScene.js";
 import { gameState } from "./data/gameState.js";
 import * as GS from "./data/gameState.js";
 
@@ -25,7 +26,7 @@ const config = {
   },
   // 場景清單。「第一個」會在開場時啟動。
   // 太空 RPG 流程：標題 → 探索星球(World) → 戰鬥(Battle)。
-  scene: [PreloadScene, TitleScene, WorldScene, BattleScene, ShopScene],
+  scene: [PreloadScene, TitleScene, WorldScene, BattleScene, ShopScene, EquipScene],
 };
 
 // 建立遊戲！

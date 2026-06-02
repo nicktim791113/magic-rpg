@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { FONT, GAME_WIDTH, GAME_HEIGHT } from "../data/constants.js";
-import { gameState, gainExp, removeItem, saveGame } from "../data/gameState.js";
+import { gameState, gainExp, removeItem, saveGame, effAtk, effDef, recordKill } from "../data/gameState.js";
 import { ENEMIES } from "../data/enemies.js";
 import { ITEMS } from "../data/items.js";
 import { SKILLS } from "../data/skills.js";
@@ -128,7 +128,7 @@ export default class BattleScene extends Phaser.Scene {
       return;
     }
     const target = alive[Math.floor(Math.random() * alive.length)];
-    const dmg = this.calcDamage(this.enemy.atk, target.def);
+    const dmg = this.calcDamage(this.enemy.atk, effDef(target));
     target.hp = Math.max(0, target.hp - dmg);
     this.cameras.main.shake(150, 0.012);
     this.updatePartyTexts();
@@ -198,7 +198,7 @@ export default class BattleScene extends Phaser.Scene {
   // ---------- 行動 ----------
   doAttack() {
     this.beginAction();
-    const dmg = this.calcDamage(this.actor.atk, this.enemy.def);
+    const dmg = this.calcDamage(effAtk(this.actor), this.enemy.def);
     this.enemy.hp -= dmg;
     this.hitShake(this.enemySprite);
     this.updateBars();
@@ -217,7 +217,7 @@ export default class BattleScene extends Phaser.Scene {
     this.beginAction();
     this.actor.sp -= sk.sp;
     if (sk.type === "attack") {
-      const dmg = Math.floor(this.calcDamage(this.actor.atk, this.enemy.def) * sk.power);
+      const dmg = Math.floor(this.calcDamage(effAtk(this.actor), this.enemy.def) * sk.power);
       this.enemy.hp -= dmg;
       this.hitShake(this.enemySprite);
       this.updateBars();
@@ -263,11 +263,13 @@ export default class BattleScene extends Phaser.Scene {
     const { exp, gold, name } = this.enemy;
     gameState.gold += gold;
     gameState.cleared.add(this.enemyKey);
+    recordKill(this.enemyId);
     const levelMsgs = [];
     this.party.forEach((m) => {
       if (m.hp > 0) {
-        const lv = gainExp(exp, m);
-        if (lv.length) levelMsgs.push(`${m.name} 升到 Lv.${m.level}！`);
+        const res = gainExp(exp, m);
+        if (res.levels.length) levelMsgs.push(`${m.name} 升到 Lv.${m.level}！`);
+        res.learned.forEach((nm) => levelMsgs.push(`${m.name} 學會了「${nm}」！`));
       }
     });
     this.tweens.add({ targets: this.enemySprite, alpha: 0, scale: 0.3, duration: 400 });

@@ -1,9 +1,11 @@
 import Phaser from "phaser";
 import { FONT, GAME_WIDTH, GAME_HEIGHT } from "../data/constants.js";
-import { gameState, addItem, saveGame, joinAlly } from "../data/gameState.js";
+import { gameState, addItem, saveGame, joinAlly, questStatus, acceptQuest, isQuestComplete, claimQuest, effAtk, effDef } from "../data/gameState.js";
 import { PLANETS } from "../data/planets.js";
 import { ENEMIES } from "../data/enemies.js";
 import { ITEMS } from "../data/items.js";
+import { EQUIPMENT } from "../data/equipment.js";
+import { QUESTS } from "../data/quests.js";
 import { spriteOrShape } from "../util/art.js";
 
 // ============================================================
@@ -98,12 +100,13 @@ export default class WorldScene extends Phaser.Scene {
 
     // --- 輸入 ---
     this.cursors = this.input.keyboard.createCursorKeys();
-    this.keys = this.input.keyboard.addKeys("W,A,S,D,SPACE,I,ESC");
+    this.keys = this.input.keyboard.addKeys("W,A,S,D,SPACE,I,E,Q,ESC");
 
     // --- UI ---
     this.createDialogueBox();
     this.createHud();
     this.createInventoryPanel();
+    this.createQuestLog();
 
     // 剛打完仗回來：給一小段「無敵時間」，避免一出生又馬上撞到怪
     this.battleGrace = this.fromBattle;
@@ -117,15 +120,20 @@ export default class WorldScene extends Phaser.Scene {
     this.updateHud();
 
     // 對話中 / 背包開啟時：不能移動
-    if (this.dialogueActive || this.inventoryOpen) {
+    if (this.dialogueActive || this.inventoryOpen || this.questLogOpen) {
       this.player.body.setVelocity(0, 0);
       if (this.dialogueActive && Phaser.Input.Keyboard.JustDown(this.keys.SPACE)) this.advanceDialogue();
       if (this.inventoryOpen && (Phaser.Input.Keyboard.JustDown(this.keys.I) || Phaser.Input.Keyboard.JustDown(this.keys.ESC))) this.toggleInventory();
+      if (this.questLogOpen && (Phaser.Input.Keyboard.JustDown(this.keys.Q) || Phaser.Input.Keyboard.JustDown(this.keys.ESC))) this.openQuestLog();
       return;
     }
 
     // 開 / 關背包
     if (Phaser.Input.Keyboard.JustDown(this.keys.I)) { this.toggleInventory(); return; }
+    // 裝備畫面
+    if (Phaser.Input.Keyboard.JustDown(this.keys.E)) { this.openEquip(); return; }
+    // 任務日誌
+    if (Phaser.Input.Keyboard.JustDown(this.keys.Q)) { this.openQuestLog(); return; }
 
     // 移動
     const speed = 230;
@@ -160,6 +168,7 @@ export default class WorldScene extends Phaser.Scene {
     for (const n of this.npcs) {
       if (Phaser.Math.Distance.Between(px, py, n.x, n.y) < 56 && Phaser.Input.Keyboard.JustDown(this.keys.SPACE)) {
         if (n.shop) this.openShop();
+        else if (n.quest) this.talkQuest(n);
         else this.startDialogue(n);
         return;
       }
@@ -200,6 +209,13 @@ export default class WorldScene extends Phaser.Scene {
     this.time.delayedCall(190, () => this.scene.start("ShopScene", { returnPlanet: this.planetId }));
   }
 
+  openEquip() {
+    this.transitioning = true;
+    gameState.returnPos = { x: this.player.x, y: this.player.y + 36 };
+    this.cameras.main.fadeOut(160);
+    this.time.delayedCall(170, () => this.scene.start("EquipScene", { returnPlanet: this.planetId }));
+  }
+
   // ---------------- 畫面元件 ----------------
   drawGround(w, h, planet) {
     // 有地面圖就鋪成可重複的材質；沒有就畫原本的色塊格線
@@ -237,7 +253,7 @@ export default class WorldScene extends Phaser.Scene {
     this.add.rectangle(GAME_WIDTH / 2, 22, GAME_WIDTH, 44, 0x000000, 0.55).setScrollFactor(0);
     this.hudText = this.add.text(14, 11, "", { fontSize: "15px", color: "#ffffff", fontFamily: FONT }).setScrollFactor(0);
     this.planetLabel = this.add.text(GAME_WIDTH - 14, 11, "", { fontSize: "15px", color: "#ffe082", fontFamily: FONT }).setOrigin(1, 0).setScrollFactor(0);
-    this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 18, "方向鍵/WASD 移動　·　空白鍵 對話／傳送　·　I 背包", { fontSize: "14px", color: "#ffffff", fontFamily: FONT, backgroundColor: "#00000077", padding: { x: 8, y: 4 } }).setOrigin(0.5).setScrollFactor(0);
+    this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 18, "WASD 移動　·　空白鍵 互動　·　I 背包　·　E 裝備　·　Q 任務", { fontSize: "14px", color: "#ffffff", fontFamily: FONT, backgroundColor: "#00000077", padding: { x: 8, y: 4 } }).setOrigin(0.5).setScrollFactor(0);
     this.updateHud();
   }
 
@@ -260,6 +276,26 @@ export default class WorldScene extends Phaser.Scene {
     this.dialogueBg = this.add.rectangle(GAME_WIDTH / 2, 510, 760, 130, 0x000000, 0.85).setScrollFactor(0).setStrokeStyle(2, 0xffffff).setVisible(false);
     this.dialogueText = this.add.text(40, 462, "", { fontSize: "20px", color: "#ffffff", fontFamily: FONT, wordWrap: { width: 720 }, lineSpacing: 8 }).setScrollFactor(0).setVisible(false);
     this.dialogueHint = this.add.text(720, 552, "空白鍵 ▶", { fontSize: "14px", color: "#bbbbbb", fontFamily: FONT }).setScrollFactor(0).setVisible(false);
+  }
+
+  talkQuest(n) {
+    const qid = n.quest;
+    const q = QUESTS[qid];
+    const st = questStatus(qid);
+    let lines;
+    let onEnd = null;
+    if (st === "none") {
+      lines = q.offer;
+      onEnd = () => { acceptQuest(qid); this.flashMessage(`接下任務：${q.name}`); };
+    } else if (st === "active" && isQuestComplete(qid)) {
+      lines = q.complete;
+      onEnd = () => { claimQuest(qid); this.flashMessage(`任務完成：${q.name}！`); };
+    } else if (st === "active") {
+      lines = q.progress;
+    } else {
+      lines = q.done;
+    }
+    this.startDialogue({ name: n.name, lines, onEnd });
   }
 
   startDialogue(npc) {
@@ -293,6 +329,7 @@ export default class WorldScene extends Phaser.Scene {
         saveGame();
       }
     }
+    if (npc && npc.onEnd) npc.onEnd();
   }
 
   // ---------------- 背包 ----------------
@@ -303,6 +340,42 @@ export default class WorldScene extends Phaser.Scene {
     this.invText = this.add.text(175, 175, "", { fontSize: "17px", color: "#ffffff", fontFamily: FONT, lineSpacing: 8 }).setScrollFactor(0).setVisible(false);
   }
 
+  createQuestLog() {
+    this.questLogOpen = false;
+    this.qlBg = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 560, 420, 0x10141f, 0.96).setScrollFactor(0).setStrokeStyle(2, 0x88aaff).setVisible(false);
+    this.qlTitle = this.add.text(GAME_WIDTH / 2, 120, "任務日誌", { fontSize: "24px", color: "#ffe082", fontFamily: FONT }).setOrigin(0.5).setScrollFactor(0).setVisible(false);
+    this.qlText = this.add.text(165, 168, "", { fontSize: "16px", color: "#ffffff", fontFamily: FONT, lineSpacing: 8, wordWrap: { width: 470 } }).setScrollFactor(0).setVisible(false);
+  }
+
+  openQuestLog() {
+    this.questLogOpen = !this.questLogOpen;
+    const vis = this.questLogOpen;
+    this.qlBg.setVisible(vis);
+    this.qlTitle.setVisible(vis);
+    this.qlText.setVisible(vis);
+    if (vis) {
+      const ids = Object.keys(gameState.quests);
+      let s;
+      if (ids.length === 0) {
+        s = "目前沒有任務。\n\n（提示：去綠林星找植物學家芬恩接任務）";
+      } else {
+        s = ids
+          .map((id) => {
+            const q = QUESTS[id];
+            const st = gameState.quests[id];
+            if (!q) return "";
+            if (st.status === "claimed") return `✔ ${q.name}（已完成）\n　${q.desc}`;
+            const done = st.progress >= q.count;
+            return `${done ? "★" : "•"} ${q.name}（${Math.min(st.progress, q.count)}/${q.count}${done ? "　可回報！" : ""}）\n　${q.desc}`;
+          })
+          .filter(Boolean)
+          .join("\n\n");
+      }
+      s += "\n\n按 Q 或 ESC 關閉";
+      this.qlText.setText(s);
+    }
+  }
+
   toggleInventory() {
     this.inventoryOpen = !this.inventoryOpen;
     const vis = this.inventoryOpen;
@@ -311,9 +384,9 @@ export default class WorldScene extends Phaser.Scene {
     this.invText.setVisible(vis);
     if (vis) {
       const p = gameState.player;
-      let s = `${p.name}　Lv.${p.level}　${p.job}\n\nHP ${p.hp}/${p.maxHp}　　SP ${p.sp}/${p.maxSp}\n攻擊 ${p.atk}　　防禦 ${p.def}\n金幣 ${gameState.gold}\n\n──────── 道具 ────────\n`;
+      let s = `${p.name}　Lv.${p.level}　${p.job}\n\nHP ${p.hp}/${p.maxHp}　　SP ${p.sp}/${p.maxSp}\n攻擊 ${effAtk(p)}　　防禦 ${effDef(p)}\n金幣 ${gameState.gold}\n\n──────── 道具 ────────\n`;
       if (gameState.inventory.length === 0) s += "（空）";
-      else s += gameState.inventory.map((it) => `· ${ITEMS[it.id].name} ×${it.count}`).join("\n");
+      else s += gameState.inventory.map((it) => { const d = ITEMS[it.id] || EQUIPMENT[it.id]; return `· ${d ? d.name : it.id} ×${it.count}`; }).join("\n");
       s += "\n\n按 I 或 ESC 關閉";
       this.invText.setText(s);
     }

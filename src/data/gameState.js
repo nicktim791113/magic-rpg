@@ -1,6 +1,10 @@
+import { SKILLS } from "./skills.js";
+import { EQUIPMENT } from "./equipment.js";
+import { QUESTS } from "./quests.js";
+
 // ============================================================
 // gameState = 整個遊戲的「存放點」。所有場景共用同一份。
-// 也負責：存檔/讀檔（localStorage）、隊友、升級。
+// 也負責：存檔/讀檔（localStorage）、隊友、升級、裝備。
 // ============================================================
 
 // 預設的全新遊戲狀態（「新遊戲」與「重置」都用這個）
@@ -12,6 +16,7 @@ function defaults() {
       hp: 60, maxHp: 60, sp: 25, maxSp: 25,
       atk: 14, def: 6,
       skills: ["plasma", "heal"],
+      equip: { weapon: null, armor: null },
     },
     allies: [], // 加入的同伴（例如艾拉）
     gold: 0,
@@ -23,6 +28,7 @@ function defaults() {
     returnPos: null,
     cleared: new Set(), // 已打倒的怪 / 已撿的道具
     flags: {}, // 劇情旗標（例如 airaJoined）
+    quests: {}, // 任務狀態：{ id: { status, progress } }
   };
 }
 
@@ -36,6 +42,7 @@ const ALLY_TEMPLATES = {
     hp: 45, maxHp: 45, sp: 20, maxSp: 20,
     atk: 16, def: 4,
     skills: ["plasma"],
+    equip: { weapon: null, armor: null },
   },
 };
 
@@ -63,10 +70,28 @@ export function removeItem(id, count = 1) {
   return true;
 }
 
+// 升級時自動學會的技能：{ 角色id: { 等級: 技能id } }
+const LEARN_TABLE = {
+  arthur: { 3: "heavyslash" },
+  aira: { 2: "pierce", 4: "cure" },
+};
+
+// ---------- 裝備加成後的有效攻防 ----------
+export function effAtk(m) {
+  const w = m.equip && m.equip.weapon;
+  return m.atk + (w && EQUIPMENT[w] ? EQUIPMENT[w].atk || 0 : 0);
+}
+export function effDef(m) {
+  const a = m.equip && m.equip.armor;
+  return m.def + (a && EQUIPMENT[a] ? EQUIPMENT[a].def || 0 : 0);
+}
+
 // ---------- 升級（可用於主角或任一同伴）----------
+// 回傳 { levels: [...升到的等級], learned: [...學會的技能名稱] }
 export function gainExp(amount, member = gameState.player) {
   member.exp += amount;
   const levels = [];
+  const learned = [];
   while (member.exp >= member.expToNext) {
     member.exp -= member.expToNext;
     member.level += 1;
@@ -78,8 +103,14 @@ export function gainExp(amount, member = gameState.player) {
     member.sp = member.maxSp;
     member.expToNext = Math.floor(member.expToNext * 1.4);
     levels.push(member.level);
+    const tbl = LEARN_TABLE[member.id];
+    const learnId = tbl && tbl[member.level];
+    if (learnId && !member.skills.includes(learnId)) {
+      member.skills.push(learnId);
+      learned.push(SKILLS[learnId].name);
+    }
   }
-  return levels;
+  return { levels, learned };
 }
 
 // ---------- 存檔 / 讀檔（瀏覽器 localStorage）----------
@@ -95,6 +126,7 @@ export function saveGame() {
       currentPlanet: gameState.currentPlanet,
       cleared: [...gameState.cleared], // Set 不能直接存 JSON，轉成陣列
       flags: gameState.flags,
+      quests: gameState.quests,
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
     return true;
@@ -124,6 +156,7 @@ export function loadGame() {
     gameState.currentPlanet = d.currentPlanet || "station";
     gameState.cleared = new Set(d.cleared || []); // 陣列轉回 Set
     gameState.flags = d.flags || {};
+    gameState.quests = d.quests || {};
     gameState.returnPos = null;
     return true;
   } catch (e) {
@@ -141,4 +174,59 @@ export function clearSave() {
 export function resetGame() {
   Object.assign(gameState, defaults());
   clearSave();
+}
+
+// ---------- 任務 ----------
+export function questStatus(id) {
+  const q = gameState.quests[id];
+  return q ? q.status : "none"; // "none" | "active" | "claimed"
+}
+
+export function acceptQuest(id) {
+  if (!gameState.quests[id]) {
+    gameState.quests[id] = { status: "active", progress: 0 };
+    saveGame();
+  }
+}
+
+export function isQuestComplete(id) {
+  const q = gameState.quests[id];
+  const def = QUESTS[id];
+  return !!q && q.status === "active" && !!def && q.progress >= def.count;
+}
+
+// 打倒怪物時呼叫，推進相關任務進度
+export function recordKill(enemyId) {
+  let changed = false;
+  Object.keys(gameState.quests).forEach((id) => {
+    const q = gameState.quests[id];
+    const def = QUESTS[id];
+    if (q.status === "active" && def && def.type === "kill") {
+      if (def.target === "any" || def.target === enemyId) {
+        if (q.progress < def.count) {
+          q.progress += 1;
+          changed = true;
+        }
+      }
+    }
+  });
+  if (changed) saveGame();
+}
+
+// 領取任務獎勵
+export function claimQuest(id) {
+  const q = gameState.quests[id];
+  const def = QUESTS[id];
+  if (!q || q.status !== "active" || !def) return null;
+  const r = def.reward || {};
+  if (r.gold) gameState.gold += r.gold;
+  if (r.exp) {
+    gainExp(r.exp, gameState.player);
+    gameState.allies.forEach((a) => gainExp(r.exp, a));
+  }
+  (r.items || []).forEach((it) => addItem(it.id, it.count || 1));
+  if (r.equip) addItem(r.equip, 1);
+  q.status = "claimed";
+  saveGame();
+  return r;
 }
